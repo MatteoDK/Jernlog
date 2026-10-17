@@ -19,7 +19,7 @@ function renderExercisesPage(){
   var ex = loadEx();
   var html = '<h2 class="section">Øvelser/Mit program</h2>';
   html += '<button class="btn" id="addExBtn" style="margin-bottom:6px;">＋ Tilføj ny øvelse</button>';
-  html += '<div class="muted" style="margin-bottom:10px;text-align:center;">Hold en øvelse inde og træk den op/ned for at ændre rækkefølgen. Swipe til venstre i Program 1/2 for at fjerne en øvelse.</div>';
+  html += '<div class="muted" style="margin-bottom:10px;text-align:center;">Hold en øvelse inde og træk den op/ned for at ændre rækkefølgen. Swipe til venstre i et program for at fjerne en øvelse.</div>';
 
   function sortInGroup(arr, grp){
     return arr.slice().sort(function(a,b){
@@ -64,7 +64,8 @@ function renderExercisesPage(){
   /* Faner: Ryg / Bryst / Ben (eller "Gruppe 1/2/3" hvis brugeren har lavet sin egen gruppering) */
   var effGroups = getEffectiveGroups();
   var usingDefaultLayout = (effGroups === MUSCLE_GROUPS_BY_DAY);
-  html += '<div style="display:flex;justify-content:flex-end;margin-bottom:6px;">';
+  html += '<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:6px;">';
+  html += '<button class="pill-btn dim" id="editProgramsBtn">Administrer programmer</button>';
   html += '<button class="pill-btn dim" id="editGroupLayoutBtn">Rediger grupperinger</button>';
   html += '</div>';
   html += '<div class="ex-tabs">';
@@ -82,13 +83,13 @@ function renderExercisesPage(){
   if(inGroup.length===0){
     html += '<div class="card"><div class="empty-state">Ingen øvelser i denne gruppe endnu.</div></div>';
   } else {
-    var listA = inGroup.filter(function(e){ return variantHas(e,"a"); });
-    var listB = inGroup.filter(function(e){ return variantHas(e,"b"); });
-    var listC = inGroup.filter(function(e){ return !variantHas(e,"a") && !variantHas(e,"b"); });
-    html += listHeader("Program 1", grpIdx, "a");
-    html += listHtml(listA, grp, "a");
-    html += listHeader("Program 2", grpIdx, "b");
-    html += listHtml(listB, grp, "b");
+    var programs = getPrograms();
+    var knownLetters = programs.map(function(p){ return p.id; });
+    programs.forEach(function(p){
+      html += listHeader(escapeHtml(p.name), grpIdx, p.id);
+      html += listHtml(inGroup.filter(function(e){ return variantHas(e, p.id); }), grp, p.id);
+    });
+    var listC = inGroup.filter(function(e){ return !knownLetters.some(function(l){ return variantHas(e, l); }); });
     if(listC.length){
       html += '<div class="train-tag" style="background:var(--bg-elevated);color:var(--text-dim);">Øvrige øvelser</div>';
       html += listHtml(listC, grp, null);
@@ -102,6 +103,7 @@ function renderExercisesPage(){
   main.innerHTML = html;
   document.getElementById("addExBtn").addEventListener("click", function(){ openAddExerciseModal(""); });
   document.getElementById("editGroupLayoutBtn").addEventListener("click", function(){ openGroupLayoutModal(); });
+  document.getElementById("editProgramsBtn").addEventListener("click", function(){ openProgramsModal(); });
   main.querySelectorAll("[data-tab]").forEach(function(btn){
     bindTapAction(btn, function(){
       state.exercisesTab = parseInt(btn.getAttribute("data-tab"),10);
@@ -147,7 +149,7 @@ function persistListOrder(orderedIds){
   }
 }
 
-/* letter: "a"/"b" hvis denne liste er Program 1/2 (så swipe-til-venstre er aktiv),
+/* letter: program-bogstav hvis denne liste er et program (så swipe-til-venstre er aktiv),
    null/undefined for Øvrige øvelser (kun træk-og-slip, ingen swipe). */
 function attachListReorder(container, letter){
   var pressTimer = null;
@@ -244,9 +246,7 @@ function attachListReorder(container, letter){
   function removeFromList(exId){
     var list = loadEx().map(function(e){
       if(e.id!==exId) return e;
-      var letters = String(e.variant||"").replace(letter, "");
-      var norm = (letters.indexOf("a")!==-1?"a":"") + (letters.indexOf("b")!==-1?"b":"");
-      return Object.assign({}, e, {variant: norm || null});
+      return Object.assign({}, e, {variant: normalizeVariant(String(e.variant||"").replace(letter, ""))});
     });
     saveEx(list);
     showToast("Flyttet til Øvrige øvelser ✓");
@@ -316,7 +316,7 @@ function openEditListModal(grpIdx, letter){
   var checked = {};
   inGroup.forEach(function(e){ checked[e.id] = variantHas(e, letter); });
 
-  var programLabel = (letter==="a") ? "Program 1" : "Program 2";
+  var programLabel = programName(letter);
   var html = '<h3>'+programLabel+' — '+escapeHtml(grp.title)+'</h3>';
   html += '<div class="muted" style="margin-bottom:12px;">Vælg hvilke øvelser der skal være med. Øvelser der ikke er valgt ligger i Øvrige øvelser.</div>';
   html += '<div class="search-results" style="margin-bottom:14px;">';
@@ -339,9 +339,7 @@ function openEditListModal(grpIdx, letter){
       if(!e.muscle || grp.muscles.indexOf(e.muscle)===-1) return e;
       var letters = String(e.variant||"").replace(letter, "");
       if(checked[e.id]) letters += letter;
-      /* normalisér rækkefølgen a før b */
-      var norm = (letters.indexOf("a")!==-1?"a":"") + (letters.indexOf("b")!==-1?"b":"");
-      var newVariant = norm || null;
+      var newVariant = normalizeVariant(letters);
       if(newVariant===(e.variant||null)) return e;
       return Object.assign({}, e, {variant: newVariant});
     });
@@ -350,6 +348,73 @@ function openEditListModal(grpIdx, letter){
     showToast(programLabel+" opdateret ✓");
     renderExercisesPage();
   });
+}
+
+/* Administrér programmer: tilføj nye, omdøb, eller slet. Intet ændres før man trykker Gem.
+   Sletter man et program, flyttes dets øvelser til Øvrige øvelser (eller bliver i de andre
+   programmer de også er med i). Gemmes kun på egen konto (profiles.programs). */
+function openProgramsModal(){
+  var rows = getPrograms().map(function(p){ return {id:p.id, name:p.name, removed:false}; });
+  var MAX = PROGRAM_LETTERS.length;
+
+  function draw(){
+    var html = '<h3>Administrer programmer</h3>';
+    html += '<div class="muted" style="margin-bottom:12px;">Lav ét program pr. træningsdag, eller hvad der passer til dig. Slettes et program, flyttes dets øvelser til Øvrige øvelser.</div>';
+    rows.forEach(function(r, i){
+      if(r.removed) return;
+      html += '<div class="field" style="display:flex;gap:8px;align-items:center;"><input type="text" maxlength="30" data-progname="'+i+'" value="'+escapeHtml(r.name)+'" style="flex:1;">';
+      html += '<button class="pill-btn ghost" data-progdel="'+i+'">Slet</button></div>';
+    });
+    if(rows.filter(function(r){ return !r.removed; }).length < MAX){
+      html += '<button class="btn" id="addProgBtn" style="margin-bottom:8px;">＋ Nyt program</button>';
+    }
+    html += '<button class="btn primary" id="saveProgsBtn">Gem programmer</button>';
+    openModal(html);
+    modalSheet.querySelectorAll("[data-progname]").forEach(function(inp){
+      inp.addEventListener("input", function(){ rows[parseInt(inp.getAttribute("data-progname"),10)].name = inp.value; });
+    });
+    modalSheet.querySelectorAll("[data-progdel]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        if(rows.filter(function(r){ return !r.removed; }).length<=1){ showToast("Du skal have mindst ét program"); return; }
+        rows[parseInt(btn.getAttribute("data-progdel"),10)].removed = true;
+        draw();
+      });
+    });
+    var addBtn = document.getElementById("addProgBtn");
+    if(addBtn) addBtn.addEventListener("click", function(){
+      var used = rows.map(function(r){ return r.id; });
+      var letter = PROGRAM_LETTERS.split("").find(function(c){ return used.indexOf(c)===-1; });
+      if(!letter) return;
+      var n = rows.filter(function(r){ return !r.removed; }).length + 1;
+      rows.push({id:letter, name:"Program "+n, removed:false});
+      draw();
+    });
+    document.getElementById("saveProgsBtn").addEventListener("click", saveProgs);
+  }
+
+  function saveProgs(){
+    var kept = rows.filter(function(r){ return !r.removed; });
+    if(kept.some(function(r){ return r.name.trim()===""; })){ showToast("Alle programmer skal have et navn"); return; }
+    var programs = kept.map(function(r){ return {id:r.id, name:r.name.trim()}; });
+    sb.from("profiles").update({ programs: programs }).eq("id", session.user.id).then(function(res){
+      if(res.error){ showToast("Kunne ikke gemme programmerne"); return; }
+      myProfile.programs = programs;
+      var removedLetters = rows.filter(function(r){ return r.removed; }).map(function(r){ return r.id; });
+      if(removedLetters.length){
+        var list = loadEx().map(function(e){
+          var v = String(e.variant||"");
+          var stripped = v;
+          removedLetters.forEach(function(l){ stripped = stripped.replace(l, ""); });
+          return stripped===v ? e : Object.assign({}, e, {variant: normalizeVariant(stripped)});
+        });
+        saveEx(list);
+      }
+      closeModal();
+      showToast("Programmer gemt ✓");
+      renderExercisesPage();
+    });
+  }
+  draw();
 }
 
 /* Lader brugeren selv bestemme hvilke muskelgrupper der hører sammen i de 3 faner
