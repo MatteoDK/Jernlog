@@ -124,29 +124,30 @@ function muscleSelectHtml(selectedMuscle, selectId){
 }
 
 function variantToggleHtml(toggleId, selected){
-  var html = '<div class="field"><label class="field-label">Program på Øvelser-siden (intet valg = Øvrige øvelser)</label>';
-  html += '<div class="toggle-group" id="'+toggleId+'">';
-  [["a","Program 1"],["b","Program 2"],["ab","Begge"]].forEach(function(p){
-    html += '<div class="toggle-opt'+(selected===p[0]?' selected':'')+'" data-var="'+p[0]+'">'+p[1]+'</div>';
+  var html = '<div class="field"><label class="field-label">Programmer på Øvelser-siden (intet valg = Øvrige øvelser)</label>';
+  html += '<div class="toggle-group" id="'+toggleId+'" style="flex-wrap:wrap;">';
+  getPrograms().forEach(function(p){
+    var on = String(selected||"").indexOf(p.id)!==-1;
+    html += '<div class="toggle-opt'+(on?' selected':'')+'" data-var="'+p.id+'" style="flex:1 1 40%;">'+escapeHtml(p.name)+'</div>';
   });
   html += '</div></div>';
   return html;
 }
+/* Flere programmer kan vælges på én gang — tryk igen på et program for at fjerne det igen */
 function attachVariantToggle(toggleId, initial, onChange){
   var box = document.getElementById(toggleId);
-  var current = initial || null;
+  var chosen = String(initial||"");
   box.querySelectorAll(".toggle-opt").forEach(function(opt){
     opt.addEventListener("click", function(){
       var v = opt.getAttribute("data-var");
-      if(current===v){
-        current = null; /* tryk igen = fravælg */
+      if(chosen.indexOf(v)!==-1){
+        chosen = chosen.replace(v, "");
         opt.classList.remove("selected");
       } else {
-        current = v;
-        box.querySelectorAll(".toggle-opt").forEach(function(o){o.classList.remove("selected");});
+        chosen += v;
         opt.classList.add("selected");
       }
-      onChange(current);
+      onChange(normalizeVariant(chosen));
     });
   });
 }
