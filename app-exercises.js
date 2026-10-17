@@ -6,8 +6,8 @@ function variantHas(e, letter){
   return String(e.variant||"").indexOf(letter)!==-1;
 }
 
-/* Øvelser/Mit program: én fane pr. program (dine egne navne) + en fane til Øvrige øvelser.
-   Hvert program viser alle sine øvelser i én liste, på tværs af muskelgrupper. */
+/* Øvelser/Mit program: øverst vælger man program (dine egne navne) eller Øvrige; derunder en fane pr.
+   træning i det program. Hver træning viser sine øvelser i én liste på tværs af muskelgrupper. */
 function sortExercises(arr){
   return arr.slice().sort(function(a,b){
     var pa = (a.position===null||a.position===undefined) ? Infinity : a.position;
@@ -22,15 +22,18 @@ function sortExercises(arr){
 function renderExercisesPage(){
   state.viewUser = null;
   var programs = getPrograms();
-  var knownLetters = programs.map(function(p){ return p.id; });
-  if(state.exercisesTab!=="other" && knownLetters.indexOf(state.exercisesTab)===-1){
-    state.exercisesTab = programs[0].id;
+  var allWorkoutIds = getWorkouts().map(function(w){ return w.id; });
+  if(state.exercisesProgram!=="other" && !programs.some(function(p){ return p.id===state.exercisesProgram; })){
+    state.exercisesProgram = programs[0].id;
   }
-  var tab = state.exercisesTab;
+  var curProgram = programs.find(function(p){ return p.id===state.exercisesProgram; }) || null;
+  if(curProgram && !curProgram.workouts.some(function(w){ return w.id===state.exercisesTab; })){
+    state.exercisesTab = curProgram.workouts[0].id;
+  }
   var ex = loadEx();
   var html = '<h2 class="section">Øvelser/Mit program</h2>';
   html += '<button class="btn" id="addExBtn" style="margin-bottom:6px;">＋ Tilføj ny øvelse</button>';
-  html += '<div class="muted" style="margin-bottom:10px;text-align:center;">Hold en øvelse inde og træk den op/ned for at ændre rækkefølgen. Swipe til venstre i et program for at fjerne en øvelse.</div>';
+  html += '<div class="muted" style="margin-bottom:10px;text-align:center;">Hold en øvelse inde og træk den op/ned for at ændre rækkefølgen. Swipe til venstre i en træning for at fjerne en øvelse.</div>';
 
   function listHtml(arr, letter, emptyText){
     if(arr.length===0) return '<div class="card" style="margin-top:0;margin-bottom:16px;"><div class="muted" style="text-align:center;">'+emptyText+'</div></div>';
@@ -51,7 +54,7 @@ function renderExercisesPage(){
   var uncategorized = ex.filter(function(e){ return !e.muscle; }).sort(function(a,b){ return a.name.localeCompare(b.name); });
   if(uncategorized.length){
     html += '<div class="train-tag" style="background:var(--red);color:#fff;">Ikke kategoriseret</div>';
-    html += '<div class="muted" style="margin-bottom:8px;">Tryk på en øvelse for at vælge muskelgruppe og program.</div>';
+    html += '<div class="muted" style="margin-bottom:8px;">Tryk på en øvelse for at vælge muskelgruppe og træning.</div>';
     html += '<div class="card" style="padding:0;margin-top:0;margin-bottom:16px;">';
     uncategorized.forEach(function(e){
       html += '<div class="list-row" data-catid="'+e.id+'"><div><div class="name">'+escapeHtml(e.name)+'</div><div class="muted">'+(e.bodyweight?'Kropsvægt · ':'')+'Mangler kategori</div></div><div class="pill-btn" style="pointer-events:none;">Kategorisér</div></div>';
@@ -64,19 +67,25 @@ function renderExercisesPage(){
   html += '</div>';
   html += '<div class="ex-tabs">';
   programs.forEach(function(p){
-    html += '<button class="ex-tab'+(p.id===tab?' active':'')+'" data-tab="'+p.id+'">'+escapeHtml(p.name)+'</button>';
+    html += '<button class="ex-tab'+(p.id===state.exercisesProgram?' active':'')+'" data-prog="'+escapeHtml(p.id)+'">'+escapeHtml(p.name)+'</button>';
   });
-  html += '<button class="ex-tab'+(tab==="other"?' active':'')+'" data-tab="other">Øvrige</button>';
+  html += '<button class="ex-tab'+(state.exercisesProgram==="other"?' active':'')+'" data-prog="other">Øvrige</button>';
   html += '</div>';
 
-  if(tab==="other"){
-    var others = ex.filter(function(e){ return e.muscle && !knownLetters.some(function(l){ return variantHas(e, l); }); });
+  if(!curProgram){
+    var others = ex.filter(function(e){ return e.muscle && !allWorkoutIds.some(function(l){ return variantHas(e, l); }); });
     html += '<div class="train-tag" style="background:var(--bg-elevated);color:var(--text-dim);">Øvrige øvelser</div>';
-    html += listHtml(others, null, "(ingen — alle dine øvelser ligger i et program)");
+    html += listHtml(others, null, "(ingen — alle dine øvelser ligger i en træning)");
   } else {
-    var inProg = ex.filter(function(e){ return e.muscle && variantHas(e, tab); });
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div class="train-tag" style="margin-bottom:0;">'+escapeHtml(programName(tab))+'</div><button class="pill-btn dim" data-editlist="'+tab+'">Rediger</button></div>';
-    html += listHtml(inProg, tab, "(tom — tryk Rediger for at tilføje øvelser)");
+    var tab = state.exercisesTab;
+    html += '<div class="ex-tabs ex-subtabs">';
+    curProgram.workouts.forEach(function(w){
+      html += '<button class="ex-tab sub'+(w.id===tab?' active':'')+'" data-tab="'+w.id+'">'+escapeHtml(w.name)+'</button>';
+    });
+    html += '</div>';
+    var inWorkout = ex.filter(function(e){ return e.muscle && variantHas(e, tab); });
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div class="train-tag" style="margin-bottom:0;">'+escapeHtml(workoutName(tab))+'</div><button class="pill-btn dim" data-editlist="'+tab+'">Rediger</button></div>';
+    html += listHtml(inWorkout, tab, "(tom — tryk Rediger for at tilføje øvelser)");
   }
 
   if(ex.length===0){
@@ -86,6 +95,13 @@ function renderExercisesPage(){
   main.innerHTML = html;
   document.getElementById("addExBtn").addEventListener("click", function(){ openAddExerciseModal(""); });
   document.getElementById("editProgramsBtn").addEventListener("click", function(){ openProgramsModal(); });
+  main.querySelectorAll("[data-prog]").forEach(function(btn){
+    bindTapAction(btn, function(){
+      state.exercisesProgram = btn.getAttribute("data-prog");
+      state.exercisesTab = null; /* vælger programmets første træning */
+      renderExercisesPage();
+    });
+  });
   main.querySelectorAll("[data-tab]").forEach(function(btn){
     bindTapAction(btn, function(){
       state.exercisesTab = btn.getAttribute("data-tab");
@@ -129,7 +145,7 @@ function persistListOrder(orderedIds){
   }
 }
 
-/* letter: program-bogstav hvis denne liste er et program (så swipe-til-venstre er aktiv),
+/* letter: træning-tegn hvis denne liste er en træning (så swipe-til-venstre er aktiv),
    null/undefined for Øvrige øvelser (kun træk-og-slip, ingen swipe). */
 function attachListReorder(container, letter){
   var pressTimer = null;
@@ -283,7 +299,7 @@ function attachListReorder(container, letter){
   container.addEventListener("touchstart", onDown, {passive:true});
 }
 
-/* Redigér hvilke øvelser der er med i et program (alle muskelgrupper samlet i én liste) */
+/* Redigér hvilke øvelser der er med i en træning (alle muskelgrupper samlet i én liste) */
 function openEditListModal(letter){
   var all = loadEx().filter(function(e){ return e.muscle; })
     .sort(function(a,b){
@@ -294,15 +310,15 @@ function openEditListModal(letter){
   var checked = {};
   all.forEach(function(e){ checked[e.id] = variantHas(e, letter); });
 
-  var programLabel = programName(letter);
+  var programLabel = workoutName(letter);
   var html = '<h3>'+escapeHtml(programLabel)+'</h3>';
-  html += '<div class="muted" style="margin-bottom:12px;">Vælg hvilke øvelser der skal være med. Øvelser der ikke er med i noget program ligger i Øvrige.</div>';
+  html += '<div class="muted" style="margin-bottom:12px;">Vælg hvilke øvelser der skal være med. Øvelser der ikke er med i nogen træning ligger i Øvrige.</div>';
   html += '<div class="search-results" style="margin-bottom:14px;">';
   all.forEach(function(e){
     html += '<div class="search-result-item" data-chk="'+e.id+'"><span>'+escapeHtml(e.name)+' <span class="muted">('+(MUSCLE_LABELS[e.muscle]||"")+')</span></span><span style="font-size:18px;font-weight:800;color:var(--yellow);" id="chk_'+e.id+'">'+(checked[e.id]?"☑":"☐")+'</span></div>';
   });
   html += '</div>';
-  html += '<button class="btn primary" id="saveListBtn">Gem program</button>';
+  html += '<button class="btn primary" id="saveListBtn">Gem træning</button>';
   openModal(html);
 
   modalSheet.querySelectorAll("[data-chk]").forEach(function(row){
@@ -328,61 +344,106 @@ function openEditListModal(letter){
   });
 }
 
-/* Administrér programmer: tilføj nye, omdøb, eller slet. Intet ændres før man trykker Gem.
-   Sletter man et program, flyttes dets øvelser til Øvrige øvelser (eller bliver i de andre
-   programmer de også er med i). Gemmes kun på egen konto (profiles.programs). */
+/* Administrér programmer og træninger: tilføj, omdøb eller slet. Intet ændres før man trykker Gem.
+   Sletter man en træning (eller et helt program), flyttes dens øvelser til Øvrige øvelser (eller
+   bliver i de andre træninger de også er med i). Gemmes kun på egen konto (profiles.programs). */
 function openProgramsModal(){
-  var rows = getPrograms().map(function(p){ return {id:p.id, name:p.name, removed:false}; });
-  var MAX = PROGRAM_LETTERS.length;
+  var rows = getPrograms().map(function(p){
+    return {id:p.id, name:p.name, removed:false, workouts:p.workouts.map(function(w){ return {id:w.id, name:w.name, removed:false}; })};
+  });
+  function alive(arr){ return arr.filter(function(x){ return !x.removed; }); }
+  function usedChars(){
+    var u = [];
+    rows.forEach(function(p){ p.workouts.forEach(function(w){ u.push(w.id); }); });
+    return u;
+  }
 
   function draw(){
     var html = '<h3>Administrer programmer</h3>';
-    html += '<div class="muted" style="margin-bottom:12px;">Lav ét program pr. træningsdag, eller hvad der passer til dig. Slettes et program, flyttes dets øvelser til Øvrige øvelser.</div>';
-    rows.forEach(function(r, i){
-      if(r.removed) return;
-      html += '<div class="field" style="display:flex;gap:8px;align-items:center;"><input type="text" maxlength="30" data-progname="'+i+'" value="'+escapeHtml(r.name)+'" style="flex:1;">';
-      html += '<button class="pill-btn ghost" data-progdel="'+i+'">Slet</button></div>';
+    html += '<div class="muted" style="margin-bottom:12px;">Et program (fx "Push Pull Legs") indeholder dine forskellige træninger (fx Push, Pull, Ben). Slettes en træning, flyttes dens øvelser til Øvrige øvelser.</div>';
+    rows.forEach(function(p, pi){
+      if(p.removed) return;
+      html += '<div class="card" style="margin-top:0;margin-bottom:12px;">';
+      html += '<div class="field" style="display:flex;gap:8px;align-items:center;"><input type="text" maxlength="30" data-progname="'+pi+'" value="'+escapeHtml(p.name)+'" style="flex:1;font-weight:700;"><button class="pill-btn ghost" data-progdel="'+pi+'">Slet program</button></div>';
+      p.workouts.forEach(function(w, wi){
+        if(w.removed) return;
+        html += '<div class="field" style="display:flex;gap:8px;align-items:center;margin-left:14px;"><input type="text" maxlength="30" data-wname="'+pi+'-'+wi+'" value="'+escapeHtml(w.name)+'" style="flex:1;"><button class="pill-btn ghost" data-wdel="'+pi+'-'+wi+'">Slet</button></div>';
+      });
+      html += '<button class="pill-btn dim" data-wadd="'+pi+'" style="margin-left:14px;">＋ Ny træning</button>';
+      html += '</div>';
     });
-    if(rows.filter(function(r){ return !r.removed; }).length < MAX){
-      html += '<button class="btn" id="addProgBtn" style="margin-bottom:8px;">＋ Nyt program</button>';
-    }
-    html += '<button class="btn primary" id="saveProgsBtn">Gem programmer</button>';
+    html += '<button class="btn" id="addProgBtn" style="margin-bottom:8px;">＋ Nyt program</button>';
+    html += '<button class="btn primary" id="saveProgsBtn">Gem</button>';
     openModal(html);
+
     modalSheet.querySelectorAll("[data-progname]").forEach(function(inp){
       inp.addEventListener("input", function(){ rows[parseInt(inp.getAttribute("data-progname"),10)].name = inp.value; });
     });
+    modalSheet.querySelectorAll("[data-wname]").forEach(function(inp){
+      inp.addEventListener("input", function(){
+        var ix = inp.getAttribute("data-wname").split("-");
+        rows[parseInt(ix[0],10)].workouts[parseInt(ix[1],10)].name = inp.value;
+      });
+    });
     modalSheet.querySelectorAll("[data-progdel]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        if(rows.filter(function(r){ return !r.removed; }).length<=1){ showToast("Du skal have mindst ét program"); return; }
-        rows[parseInt(btn.getAttribute("data-progdel"),10)].removed = true;
+        if(alive(rows).length<=1){ showToast("Du skal have mindst ét program"); return; }
+        var p = rows[parseInt(btn.getAttribute("data-progdel"),10)];
+        p.removed = true;
+        p.workouts.forEach(function(w){ w.removed = true; });
         draw();
       });
     });
-    var addBtn = document.getElementById("addProgBtn");
-    if(addBtn) addBtn.addEventListener("click", function(){
-      var used = rows.map(function(r){ return r.id; });
-      var letter = PROGRAM_LETTERS.split("").find(function(c){ return used.indexOf(c)===-1; });
-      if(!letter) return;
-      var n = rows.filter(function(r){ return !r.removed; }).length + 1;
-      rows.push({id:letter, name:"Program "+n, removed:false});
+    modalSheet.querySelectorAll("[data-wdel]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var ix = btn.getAttribute("data-wdel").split("-");
+        var p = rows[parseInt(ix[0],10)];
+        if(alive(p.workouts).length<=1){ showToast("Et program skal have mindst én træning"); return; }
+        p.workouts[parseInt(ix[1],10)].removed = true;
+        draw();
+      });
+    });
+    modalSheet.querySelectorAll("[data-wadd]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var p = rows[parseInt(btn.getAttribute("data-wadd"),10)];
+        var ch = newChar();
+        if(!ch){ showToast("Du har nået det maksimale antal træninger"); return; }
+        p.workouts.push({id:ch, name:"Træning "+(alive(p.workouts).length+1), removed:false});
+        draw();
+      });
+    });
+    document.getElementById("addProgBtn").addEventListener("click", function(){
+      var ch = newChar();
+      if(!ch){ showToast("Du har nået det maksimale antal træninger"); return; }
+      var n = 1, ids = rows.map(function(r){ return r.id; });
+      while(ids.indexOf("p"+n)!==-1) n++;
+      rows.push({id:"p"+n, name:"Program "+(alive(rows).length+1), removed:false, workouts:[{id:ch, name:"Træning 1", removed:false}]});
       draw();
     });
     document.getElementById("saveProgsBtn").addEventListener("click", saveProgs);
   }
+  function newChar(){
+    var u = usedChars();
+    return WORKOUT_CHARS.split("").find(function(c){ return u.indexOf(c)===-1; }) || null;
+  }
 
   function saveProgs(){
-    var kept = rows.filter(function(r){ return !r.removed; });
-    if(kept.some(function(r){ return r.name.trim()===""; })){ showToast("Alle programmer skal have et navn"); return; }
-    var programs = kept.map(function(r){ return {id:r.id, name:r.name.trim()}; });
+    var keptP = alive(rows);
+    var bad = keptP.some(function(p){ return p.name.trim()===""; }) || keptP.some(function(p){ return alive(p.workouts).some(function(w){ return w.name.trim()===""; }); });
+    if(bad){ showToast("Alle programmer og træninger skal have et navn"); return; }
+    var programs = keptP.map(function(p){
+      return {id:p.id, name:p.name.trim(), workouts:alive(p.workouts).map(function(w){ return {id:w.id, name:w.name.trim()}; })};
+    });
     sb.from("profiles").update({ programs: programs }).eq("id", session.user.id).then(function(res){
       if(res.error){ showToast("Kunne ikke gemme programmerne"); return; }
       myProfile.programs = programs;
-      var removedLetters = rows.filter(function(r){ return r.removed; }).map(function(r){ return r.id; });
-      if(removedLetters.length){
+      var removedChars = [];
+      rows.forEach(function(p){ p.workouts.forEach(function(w){ if(w.removed) removedChars.push(w.id); }); });
+      if(removedChars.length){
         var list = loadEx().map(function(e){
           var v = String(e.variant||"");
           var stripped = v;
-          removedLetters.forEach(function(l){ stripped = stripped.replace(l, ""); });
+          removedChars.forEach(function(c){ stripped = stripped.split(c).join(""); });
           return stripped===v ? e : Object.assign({}, e, {variant: normalizeVariant(stripped)});
         });
         saveEx(list);
