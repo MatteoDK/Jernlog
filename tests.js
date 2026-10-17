@@ -257,12 +257,24 @@ async function testFlereProgrammer(){
   function check(label, cond){ checks.push([label, !!cond]); }
 
   window.goto("exercises");
-  document.querySelector('[data-tab="1"]').click();
   var main = document.getElementById("main");
+  check("faner: ét pr. program + Øvrige (ingen Ryg/Bryst/Ben)", document.querySelectorAll(".ex-tab").length===3 && main.innerHTML.indexOf("Rediger grupperinger")===-1 && main.innerHTML.indexOf(">Ryg<")===-1);
+  check("første program (Push) er valgt og viser bench på tværs af muskelgrupper", main.querySelectorAll('[data-exid="bench"]').length===1);
+  document.querySelector('[data-tab="b"]').click();
+  main = document.getElementById("main");
   check("egne programnavne vises som overskrifter", main.innerHTML.indexOf(">Push<")!==-1 && main.innerHTML.indexOf(">Pull<")!==-1);
   check("'Program 1'/'Program 2' vises ikke når de er omdøbt", main.innerHTML.indexOf("Program 1")===-1);
-  check("øvelse med variant 'ab' ligger i begge programmer", main.querySelectorAll('[data-exid="bench"]').length===2);
-  check("Øvrige øvelser indeholder Dips", main.innerHTML.indexOf("Øvrige øvelser")!==-1 && main.querySelectorAll('[data-exid="dips"]').length===1);
+  check("Pull-fanen viser bench (variant 'ab') og Pec deck", main.querySelectorAll('[data-exid="bench"]').length===1 && main.querySelectorAll('[data-exid="fly"]').length===1);
+  document.querySelector('[data-tab="other"]').click();
+  main = document.getElementById("main");
+  check("Øvrige-fanen indeholder Dips (og ikke bench)", main.querySelectorAll('[data-exid="dips"]').length===1 && main.querySelectorAll('[data-exid="bench"]').length===0);
+  document.querySelector('[data-tab="a"]').click();
+  // Rediger program: sæt Dips ind i Push (på tværs af muskelgrupper kunne også være ben-øvelser)
+  document.querySelector('[data-editlist="a"]').click();
+  document.querySelector('[data-chk="dips"]').click();
+  document.getElementById("saveListBtn").click();
+  main = document.getElementById("main");
+  check("Rediger program: Dips tilføjet til Push", window.loadEx().find(function(e){return e.id==="dips";}).variant==="a" && main.querySelectorAll('[data-exid="dips"]').length===1);
 
   // Nyt program via Administrer programmer
   document.getElementById("editProgramsBtn").click();
