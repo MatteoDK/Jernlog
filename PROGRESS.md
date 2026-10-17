@@ -2,6 +2,16 @@
 
 Sidst opdateret: 2026-08-11
 
+## Opdatering 2026-10-17 (26. runde — programmer med træninger i, to faneniveauer)
+
+**Hvad:** Øvelser/Mit program har nu to niveauer. Øverst vælger man PROGRAM (egne navne, fx "Push Pull Legs", "Upper/Lower") eller "Øvrige". Under det vælger man TRÆNING i det program (fx Push, Pull, Ben, Push 2…). Hver træning har sin egen øvelsesliste (på tværs af muskelgrupper), "Rediger" med flueben, træk-for-rækkefølge og swipe-for-fjern som før. "Administrer programmer" kan tilføje/omdøbe/slette både programmer og træninger. Op til 62 træninger i alt.
+
+**Teknisk:** `profiles.programs` (jsonb) har nu formen `[{id:"p1",name:"PPL",workouts:[{id:"a",name:"Push"},...]}]`. Standard (ingen data) = ét program "Program 1" med træningerne a "Træning 1" og b "Træning 2" (så eksisterende `exercises.variant`-værdier a/b virker uændret). Det flade format fra 24. runde læses stadig (bliver til ét program "Mit program"). `exercises.variant` er en tekst af træning-tegn (a-z, A-Z, 0-9), unikke på tværs af programmer. Nye hjælpere: `getPrograms()`, `getWorkouts()`, `workoutName()`, `normalizeVariant()`. `state.exercisesProgram` + `state.exercisesTab`. Ingen databaseændring ud over kolonnen fra 24. runde. Tests: 45 tjek, alle bestået; visuelt tjekket i mobilvisning.
+
+**Bemærk:** Eksisterende øvelser, der lå i Program 1/2 (a/b), ligger nu i "Træning 1/2" i det ene standardprogram — Matteo skal selv fordele dem på de nye træninger via Rediger.
+
+**Skal uploades til GitHub:** `app-core.js`, `app-exercises.js`, `app-log.js`, `styles.css`, `tests.js`, `PROGRESS.md`.
+
 ## Opdatering 2026-10-17 (25. runde — programmer som faner, muskelgruppe-faner fjernet)
 
 **Hvad:** På Øvelser/Mit program er fanerne Ryg/Bryst/Ben (og "Gruppe 1/2/3" + knappen "Rediger grupperinger") fjernet. I stedet er der én fane pr. program (dine egne navne, fx Upper/Lower) + en fane "Øvrige". Hver fane viser programmets øvelser i én liste på tværs af muskelgrupper. "Rediger" på et program viser alle øvelser (sorteret efter muskelgruppe) med flueben. Onboarding-punktet om egne muskelgrupper er fjernet. `openGroupLayoutModal()` er slettet; `getEffectiveGroups()`/`profiles.group_layout` bruges stadig internt til "Foreslået i dag" og muskelgruppe-valg, men kan ikke længere ændres i UI'et. `state.exercisesTab` er nu et program-bogstav eller "other" (før et tal). Tests: 44 tjek, alle bestået.
