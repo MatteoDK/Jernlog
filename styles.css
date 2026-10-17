@@ -206,9 +206,9 @@
   .pill-btn.ghost{background:transparent;color:var(--red);border:1px solid var(--red);}
   .pill-btn.dim{background:var(--bg-elevated);color:var(--text-dim);border:1px solid var(--border);}
 
-  /* Faner øverst på Øvelser/Mit program-siden (Ryg/Bryst/Ben) */
-  .ex-tabs{display:flex;gap:8px;margin-bottom:6px;}
-  .ex-tab{flex:1;background:var(--bg-card);color:var(--text-dim);border:1px solid var(--border);border-radius:var(--radius-sm);font:800 13px var(--font-disp);letter-spacing:0.02em;text-transform:uppercase;padding:10px 6px;}
+  /* Faner øverst på Øvelser/Mit program-siden (ét program pr. fane + Øvrige) */
+  .ex-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .ex-tab{flex:1 1 auto;min-width:72px;background:var(--bg-card);color:var(--text-dim);border:1px solid var(--border);border-radius:var(--radius-sm);font:800 13px var(--font-disp);letter-spacing:0.02em;text-transform:uppercase;padding:10px 6px;}
   .ex-tab.active{background:var(--yellow);color:#141400;border-color:var(--yellow);}
 
   /* Kalender */
