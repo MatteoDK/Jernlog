@@ -240,14 +240,18 @@ async function testOnboardingFlow(){
 }
 
 async function testFlereProgrammer(){
-  // Brugerdefinerede programmer: egne navne, nyt program, øvelse i flere programmer, sletning.
+  // Programmer med træninger i: egne navne, nyt program/ny træning, øvelse i flere træninger, sletning.
   const dom = buildPage(
     { id:"u1", username:"matteo", email:"matteoverdiani.dk@gmail.com", approved:true, group_layout:null, has_onboarded:true,
-      programs:[ {id:"a",name:"Push"}, {id:"b",name:"Pull"} ] },
+      programs:[
+        { id:"p1", name:"PPL", workouts:[ {id:"a",name:"Push"}, {id:"b",name:"Pull"} ] },
+        { id:"p2", name:"UL", workouts:[ {id:"c",name:"Upper"} ] }
+      ] },
     [
-      { user_id:"u1", id:"bench", name:"Bench press", bodyweight:false, muscle:"bryst", variant:"ab", position:1 },
+      { user_id:"u1", id:"bench", name:"Bench press", bodyweight:false, muscle:"bryst", variant:"ac", position:1 },
       { user_id:"u1", id:"fly", name:"Pec deck", bodyweight:false, muscle:"bryst", variant:"b", position:2 },
-      { user_id:"u1", id:"dips", name:"Dips", bodyweight:true, muscle:"bryst", variant:null, position:3 }
+      { user_id:"u1", id:"row", name:"Row", bodyweight:false, muscle:"ryg", variant:"b", position:3 },
+      { user_id:"u1", id:"dips", name:"Dips", bodyweight:true, muscle:"bryst", variant:null, position:4 }
     ],
     []
   );
@@ -255,53 +259,77 @@ async function testFlereProgrammer(){
   await wait(1200);
   const checks = [];
   function check(label, cond){ checks.push([label, !!cond]); }
+  function tabsText(sel){ return Array.prototype.map.call(document.querySelectorAll(sel), function(b){ return b.textContent; }).join("|"); }
 
   window.goto("exercises");
   var main = document.getElementById("main");
-  check("faner: ét pr. program + Øvrige (ingen Ryg/Bryst/Ben)", document.querySelectorAll(".ex-tab").length===3 && main.innerHTML.indexOf("Rediger grupperinger")===-1 && main.innerHTML.indexOf(">Ryg<")===-1);
-  check("første program (Push) er valgt og viser bench på tværs af muskelgrupper", main.querySelectorAll('[data-exid="bench"]').length===1);
+  check("program-faner: PPL | UL | Øvrige (ingen Ryg/Bryst/Ben, ingen grupperinger)", tabsText("[data-prog]")==="PPL|UL|Øvrige" && main.innerHTML.indexOf("Rediger grupperinger")===-1);
+  check("træning-faner i første program: Push | Pull", tabsText("[data-tab]")==="Push|Pull");
+  check("Push-træningen viser bench", main.querySelectorAll('[data-exid="bench"]').length===1 && main.querySelectorAll('[data-exid="row"]').length===0);
+
   document.querySelector('[data-tab="b"]').click();
   main = document.getElementById("main");
-  check("egne programnavne vises som overskrifter", main.innerHTML.indexOf(">Push<")!==-1 && main.innerHTML.indexOf(">Pull<")!==-1);
-  check("'Program 1'/'Program 2' vises ikke når de er omdøbt", main.innerHTML.indexOf("Program 1")===-1);
-  check("Pull-fanen viser bench (variant 'ab') og Pec deck", main.querySelectorAll('[data-exid="bench"]').length===1 && main.querySelectorAll('[data-exid="fly"]').length===1);
-  document.querySelector('[data-tab="other"]').click();
+  check("Pull-træningen viser Pec deck + Row (flere muskelgrupper i én liste)", main.querySelectorAll('[data-exid="fly"]').length===1 && main.querySelectorAll('[data-exid="row"]').length===1);
+
+  document.querySelector('[data-prog="p2"]').click();
   main = document.getElementById("main");
-  check("Øvrige-fanen indeholder Dips (og ikke bench)", main.querySelectorAll('[data-exid="dips"]').length===1 && main.querySelectorAll('[data-exid="bench"]').length===0);
-  document.querySelector('[data-tab="a"]').click();
-  // Rediger program: sæt Dips ind i Push (på tværs af muskelgrupper kunne også være ben-øvelser)
-  document.querySelector('[data-editlist="a"]').click();
+  check("program UL: kun træningen Upper, med bench (øvelse i flere træninger)", tabsText("[data-tab]")==="Upper" && main.querySelectorAll('[data-exid="bench"]').length===1);
+
+  document.querySelector('[data-prog="other"]').click();
+  main = document.getElementById("main");
+  check("Øvrige indeholder Dips (og ingen træning-faner)", main.querySelectorAll('[data-exid="dips"]').length===1 && document.querySelectorAll("[data-tab]").length===0);
+
+  // Rediger en træning: tilføj Dips til Upper
+  document.querySelector('[data-prog="p2"]').click();
+  document.querySelector('[data-editlist="c"]').click();
   document.querySelector('[data-chk="dips"]').click();
   document.getElementById("saveListBtn").click();
-  main = document.getElementById("main");
-  check("Rediger program: Dips tilføjet til Push", window.loadEx().find(function(e){return e.id==="dips";}).variant==="a" && main.querySelectorAll('[data-exid="dips"]').length===1);
+  check("Rediger træning: Dips tilføjet til Upper", window.loadEx().find(function(e){return e.id==="dips";}).variant==="c");
 
-  // Nyt program via Administrer programmer
+  // Administrer: nyt program + ny træning i PPL
   document.getElementById("editProgramsBtn").click();
   var sheet = document.getElementById("modalSheet");
-  check("modal viser de 2 eksisterende programmer", sheet.querySelectorAll("[data-progname]").length===2);
+  check("modal viser 2 programmer og 3 træninger", sheet.querySelectorAll("[data-progname]").length===2 && sheet.querySelectorAll("[data-wname]").length===3);
+  document.querySelector('[data-wadd="0"]').click();
+  var wInp = document.querySelector('[data-wname="0-2"]');
+  wInp.value = "Legs"; wInp.dispatchEvent(new window.Event("input", { bubbles:true }));
   document.getElementById("addProgBtn").click();
-  sheet = document.getElementById("modalSheet");
-  check("nyt program tilføjet i modalen (3 felter)", sheet.querySelectorAll("[data-progname]").length===3);
-  var nameInp = sheet.querySelector('[data-progname="2"]');
-  nameInp.value = "Ben-dag";
-  nameInp.dispatchEvent(new window.Event("input", { bubbles:true }));
+  var pInp = document.querySelector('[data-progname="2"]');
+  pInp.value = "Fuldkrop"; pInp.dispatchEvent(new window.Event("input", { bubbles:true }));
   document.getElementById("saveProgsBtn").click();
   await wait(100);
-  main = document.getElementById("main");
-  check("det nye program 'Ben-dag' vises på Øvelser-siden", main.innerHTML.indexOf(">Ben-dag<")!==-1);
-  check("gemt med nyt bogstav 'c'", window.getPrograms().map(function(p){return p.id;}).join("")==="abc");
+  var progs = window.getPrograms();
+  check("gemt: 3 programmer, PPL har nu 3 træninger (Legs har nyt tegn)", progs.length===3 && progs[0].workouts.length===3 && progs[0].workouts[2].name==="Legs" && progs[0].workouts[2].id==="d");
+  check("nyt program 'Fuldkrop' har en træning med nyt tegn 'e'", progs[2].name==="Fuldkrop" && progs[2].workouts[0].id==="e");
 
-  // Slet 'Pull' (b): bench bliver kun i Push, Pec deck flytter til Øvrige øvelser
+  // Slet træningen Pull (b): row (kun i b) -> Øvrige, bench (a+c) uændret
+  document.querySelector('[data-prog="p1"]').click();
+  document.getElementById("editProgramsBtn").click();
+  document.querySelector('[data-wdel="0-1"]').click();
+  document.getElementById("saveProgsBtn").click();
+  await wait(100);
+  var ex = window.loadEx();
+  check("slettet træning: øvelse kun i den -> Øvrige (null)", ex.find(function(e){return e.id==="row";}).variant===null);
+  check("slettet træning: øvelse i flere beholder de andre (bench 'ac')", ex.find(function(e){return e.id==="bench";}).variant==="ac");
+
+  // Slet hele programmet UL (p2) -> Upper (c) fjernes fra øvelserne
   document.getElementById("editProgramsBtn").click();
   document.querySelector('[data-progdel="1"]').click();
   document.getElementById("saveProgsBtn").click();
   await wait(100);
-  var ex = window.loadEx();
-  check("slettet program fjernes fra øvelser (bench -> 'a')", ex.find(function(e){return e.id==="bench";}).variant==="a");
-  check("øvelse kun i slettet program -> Øvrige (null)", ex.find(function(e){return e.id==="fly";}).variant===null);
+  ex = window.loadEx();
+  check("slettet program: dets træning-tegn fjernes (bench -> 'a')", ex.find(function(e){return e.id==="bench";}).variant==="a" && window.getPrograms().length===2);
+
+  // Kan ikke slette sidste træning i et program / sidste program
+  document.getElementById("editProgramsBtn").click();
+  check("kan ikke slette sidste træning i et program", (function(){
+    var progIdx = window.getPrograms().findIndex(function(p){ return p.name==="Fuldkrop"; });
+    var before = document.querySelectorAll("[data-wname]").length;
+    var btn = document.querySelector('[data-wdel="'+progIdx+'-0"]');
+    btn.click();
+    return document.querySelectorAll("[data-wname]").length===before;
+  })());
   check("kan ikke slette sidste program", (function(){
-    document.getElementById("editProgramsBtn").click();
     var dels = document.querySelectorAll("[data-progdel]");
     for(var i=dels.length-1;i>0;i--){ dels[i].click(); dels = document.querySelectorAll("[data-progdel]"); }
     return document.querySelectorAll("[data-progname]").length===1;
