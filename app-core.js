@@ -73,30 +73,48 @@ function getEffectiveGroups(){
 }
 function isDefaultGroupLayout(){ return getEffectiveGroups()===MUSCLE_GROUPS_BY_DAY; }
 
-/* Brugerens programmer (profiles.programs: [{id:"a",name:"Program 1"}, ...]). Hver øvelse husker
-   hvilke programmer den er med i som en tekst af program-bogstaver i exercises.variant (fx "ab").
-   Uden eget valg (eller ugyldig data) er der de to klassiske: Program 1 (a) og Program 2 (b). */
-var PROGRAM_LETTERS = "abcdefghijklmnopqrstuvwxyz";
-var DEFAULT_PROGRAMS = [{id:"a", name:"Program 1"}, {id:"b", name:"Program 2"}];
+/* Brugerens programmer (profiles.programs). To niveauer:
+     program  = fx "Push Pull Legs" eller "Upper/Lower"   {id:"p1", name:"...", workouts:[...]}
+     træning  = en enkelt træningsdag i programmet        {id:"a", name:"Push"}
+   Hver øvelse husker hvilke TRÆNINGER den er med i som en tekst af træning-tegn i exercises.variant
+   (fx "ab"), så én øvelse kan ligge i flere træninger. Tegnet er unikt på tværs af alle programmer.
+   Uden eget valg (eller ugyldig data) er der ét program med to træninger (a og b, som de klassiske
+   Program 1/2 før). Ældre, flad format ([{id:"a",name:"..."}]) bliver til ét program. */
+var WORKOUT_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+var DEFAULT_PROGRAMS = [{id:"p1", name:"Program 1", workouts:[{id:"a", name:"Træning 1"}, {id:"b", name:"Træning 2"}]}];
 function getPrograms(){
   var p = myProfile && myProfile.programs;
   if(!Array.isArray(p) || p.length===0) return DEFAULT_PROGRAMS;
-  var seen = {};
-  var ok = p.every(function(x){
-    if(!x || typeof x.id!=="string" || x.id.length!==1 || PROGRAM_LETTERS.indexOf(x.id)===-1 || seen[x.id]) return false;
-    seen[x.id] = true;
-    return typeof x.name==="string" && x.name.trim()!=="";
+  if(p.every(function(x){ return x && !x.workouts; })){
+    p = [{id:"p1", name:"Mit program", workouts:p}];
+  }
+  var seenP = {}, seenW = {};
+  var ok = p.every(function(pr){
+    if(!pr || typeof pr.id!=="string" || pr.id==="" || seenP[pr.id] || typeof pr.name!=="string" || pr.name.trim()==="") return false;
+    seenP[pr.id] = true;
+    if(!Array.isArray(pr.workouts) || pr.workouts.length===0) return false;
+    return pr.workouts.every(function(w){
+      if(!w || typeof w.id!=="string" || w.id.length!==1 || WORKOUT_CHARS.indexOf(w.id)===-1 || seenW[w.id]) return false;
+      seenW[w.id] = true;
+      return typeof w.name==="string" && w.name.trim()!=="";
+    });
   });
   return ok ? p : DEFAULT_PROGRAMS;
 }
-function programName(letter){
-  var f = getPrograms().find(function(p){ return p.id===letter; });
-  return f ? f.name : "Program";
+/* Alle træninger på tværs af programmer: [{id,name,programId}] */
+function getWorkouts(){
+  var out = [];
+  getPrograms().forEach(function(pr){ pr.workouts.forEach(function(w){ out.push({id:w.id, name:w.name, programId:pr.id}); }); });
+  return out;
 }
-/* Samler en variant-tekst: kun kendte, unikke bogstaver i fast rækkefølge — tom = null (Øvrige øvelser) */
-function normalizeVariant(letters){
-  var known = getPrograms().map(function(p){ return p.id; });
-  var out = PROGRAM_LETTERS.split("").filter(function(c){ return String(letters||"").indexOf(c)!==-1 && known.indexOf(c)!==-1; }).join("");
+function workoutName(id){
+  var f = getWorkouts().find(function(w){ return w.id===id; });
+  return f ? f.name : "Træning";
+}
+/* Samler en variant-tekst: kun kendte, unikke tegn i fast rækkefølge — tom = null (Øvrige øvelser) */
+function normalizeVariant(chars){
+  var known = getWorkouts().map(function(w){ return w.id; });
+  var out = WORKOUT_CHARS.split("").filter(function(c){ return String(chars||"").indexOf(c)!==-1 && known.indexOf(c)!==-1; }).join("");
   return out || null;
 }
 
@@ -370,7 +388,7 @@ function trendArrow(t){
 }
 
 /* ---------------- Router / state ---------------- */
-var state = { view:"log", selectedExerciseId:null, viewUser:null, histBack:"history", calMonth:null, friendCalMonth:null, calSelectedDay:null, feedExpanded:{}, feedFocus:null, digExpanded:{}, exercisesTab:0, digShowAll:false };
+var state = { view:"log", selectedExerciseId:null, viewUser:null, histBack:"history", calMonth:null, friendCalMonth:null, calSelectedDay:null, feedExpanded:{}, feedFocus:null, digExpanded:{}, exercisesTab:null, exercisesProgram:null, digShowAll:false };
 var main = document.getElementById("main");
 
 function render(){
@@ -911,7 +929,7 @@ function renderOnboardingProgram(){
   html += '<div class="muted onb-sub">Under "Øvelser/Mit program" i menuen sætter du dit program op — i dit eget tempo.</div>';
   [
     ["ic-plus","Tilføj øvelser","Vælg blandt dem der allerede er i appen, eller opret helt dine egne fra bunden."],
-    ["ic-program","Dine programmer","Læg øvelserne i et program — fx én liste pr. træningsdag. Du kan lave lige så mange programmer du vil og give dem dit eget navn."],
+    ["ic-program","Dine programmer","Lav et program (fx Push/Pull/Legs) og læg dine forskellige træninger ind i det — Push, Pull, Ben osv. Du kan lave lige så mange programmer og træninger du vil og give dem dit eget navn."],
     ["ic-folder","Øvrige øvelser","En ekstra liste til øvelser du laver en gang imellem, men som ikke er en fast del af dit split. Nye øvelser havner automatisk her, indtil du selv sætter dem på et program."]
   ].forEach(function(f){
     html += '<div class="onb-row"><div class="ic"><svg><use href="#'+f[0]+'"/></svg></div><div><div class="t">'+f[1]+'</div><div class="d">'+f[2]+'</div></div></div>';
