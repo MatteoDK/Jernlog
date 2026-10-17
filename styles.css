@@ -209,7 +209,10 @@
   /* Faner øverst på Øvelser/Mit program-siden (ét program pr. fane + Øvrige) */
   .ex-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
   .ex-tab{flex:1 1 auto;min-width:72px;background:var(--bg-card);color:var(--text-dim);border:1px solid var(--border);border-radius:var(--radius-sm);font:800 13px var(--font-disp);letter-spacing:0.02em;text-transform:uppercase;padding:10px 6px;}
+  .ex-subtabs{margin-top:-2px;}
+  .ex-tab.sub{font-size:12px;padding:8px 6px;}
   .ex-tab.active{background:var(--yellow);color:#141400;border-color:var(--yellow);}
+  .ex-tab.sub.active{background:transparent;color:var(--yellow);border-color:var(--yellow);}
 
   /* Kalender */
   .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
