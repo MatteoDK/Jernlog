@@ -2,6 +2,12 @@
 
 Sidst opdateret: 2026-08-11
 
+## Opdatering 2026-10-17 (25. runde — programmer som faner, muskelgruppe-faner fjernet)
+
+**Hvad:** På Øvelser/Mit program er fanerne Ryg/Bryst/Ben (og "Gruppe 1/2/3" + knappen "Rediger grupperinger") fjernet. I stedet er der én fane pr. program (dine egne navne, fx Upper/Lower) + en fane "Øvrige". Hver fane viser programmets øvelser i én liste på tværs af muskelgrupper. "Rediger" på et program viser alle øvelser (sorteret efter muskelgruppe) med flueben. Onboarding-punktet om egne muskelgrupper er fjernet. `openGroupLayoutModal()` er slettet; `getEffectiveGroups()`/`profiles.group_layout` bruges stadig internt til "Foreslået i dag" og muskelgruppe-valg, men kan ikke længere ændres i UI'et. `state.exercisesTab` er nu et program-bogstav eller "other" (før et tal). Tests: 44 tjek, alle bestået.
+
+**Skal uploades til GitHub:** `app-core.js`, `app-exercises.js`, `styles.css`, `tests.js`, `PROGRESS.md`. Ingen databaseændring.
+
 ## Opdatering 2026-10-17 (24. runde — så mange programmer man vil på Øvelser/Mit program)
 
 **Hvad:** Før var der fast Program 1 og Program 2. Nu kan man under "Øvelser/Mit program" trykke **Administrer programmer** og selv tilføje, omdøbe og slette programmer (op til 26), fx ét pr. træningsdag. Alle programmer vises som egne lister under hver muskelgruppe-fane, og en øvelse kan være med i flere programmer. Slettes et program, flyttes dets øvelser til Øvrige øvelser (eller bliver i de andre programmer de også er med i). Add/rediger-øvelse-vinduet har nu et valg pr. program (flere kan vælges samtidig, i stedet for Program 1 / Program 2 / Begge).
