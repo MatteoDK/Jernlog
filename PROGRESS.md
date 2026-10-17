@@ -2,6 +2,15 @@
 
 Sidst opdateret: 2026-08-11
 
+## Opdatering 2026-10-17 (24. runde — så mange programmer man vil på Øvelser/Mit program)
+
+**Hvad:** Før var der fast Program 1 og Program 2. Nu kan man under "Øvelser/Mit program" trykke **Administrer programmer** og selv tilføje, omdøbe og slette programmer (op til 26), fx ét pr. træningsdag. Alle programmer vises som egne lister under hver muskelgruppe-fane, og en øvelse kan være med i flere programmer. Slettes et program, flyttes dets øvelser til Øvrige øvelser (eller bliver i de andre programmer de også er med i). Add/rediger-øvelse-vinduet har nu et valg pr. program (flere kan vælges samtidig, i stedet for Program 1 / Program 2 / Begge).
+
+**Teknisk:** Programmerne gemmes i ny kolonne `profiles.programs` (jsonb: `[{id:"a",name:"Push"},...]`, NULL = standard Program 1+2, så ingen eksisterende bruger ændres). `exercises.variant` er uændret: en tekst af program-bogstaver (fx "ab"). Nye hjælpere i `app-core.js`: `getPrograms()`, `programName()`, `normalizeVariant()`. Nyt `openProgramsModal()` i `app-exercises.js`. 11 nye tests i `tests.js` (41 tjek i alt, alle bestået).
+
+**Skal køres i Supabase FØR upload:** `supabase-migration-programs.sql` (`alter table profiles add column if not exists programs jsonb;`).
+**Skal uploades til GitHub:** `app-core.js`, `app-exercises.js`, `app-log.js`, `tests.js`, `supabase-migration-programs.sql`, `PROGRESS.md`.
+
 ## Opdatering 2026-08-11 (23. runde — komplet nyt visuelt look, "resultattavle"-designet)
 Matteo bad om et helt nyt, "high-end App Store"-look — samme funktioner, samme steder, kun det visuelle. Retning: i stedet for endnu en generisk mørk fitness-app, er inspirationen konkurrence-vægtløftnings resultattavlen ("jern"-navnet taget bogstaveligt) — store selvsikre tal, maskinerede "plader" i stedet for bløde kort, ægte tegnede ikoner i stedet for emoji. Vist som en klikbar mockup først og godkendt af Matteo (med to justeringsrunder: fjernet en falsk forhåndsvisning på onboarding-skærm 2 + tilføjet "Øvrige øvelser"-forklaring, og rettet konfetti til at falde fra toppen af skærmen i stedet for bunden), derefter bygget ind i den rigtige app.
 
