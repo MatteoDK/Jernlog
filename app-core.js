@@ -912,8 +912,7 @@ function renderOnboardingProgram(){
   [
     ["ic-plus","Tilføj øvelser","Vælg blandt dem der allerede er i appen, eller opret helt dine egne fra bunden."],
     ["ic-program","Dine programmer","Læg øvelserne i et program — fx én liste pr. træningsdag. Du kan lave lige så mange programmer du vil og give dem dit eget navn."],
-    ["ic-folder","Øvrige øvelser","En tredje liste til øvelser du laver en gang imellem, men som ikke er en fast del af dit split. Nye øvelser havner automatisk her, indtil du selv sætter dem på et program."],
-    ["ic-settings","Dine egne muskelgrupper","Alle træner ikke ens — du kan selv vælge hvilke muskelgrupper der hører sammen, hvis din opdeling er anderledes."]
+    ["ic-folder","Øvrige øvelser","En ekstra liste til øvelser du laver en gang imellem, men som ikke er en fast del af dit split. Nye øvelser havner automatisk her, indtil du selv sætter dem på et program."]
   ].forEach(function(f){
     html += '<div class="onb-row"><div class="ic"><svg><use href="#'+f[0]+'"/></svg></div><div><div class="t">'+f[1]+'</div><div class="d">'+f[2]+'</div></div></div>';
   });
