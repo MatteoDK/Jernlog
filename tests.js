@@ -239,10 +239,70 @@ async function testOnboardingFlow(){
   return checks;
 }
 
+async function testFlereProgrammer(){
+  // Brugerdefinerede programmer: egne navne, nyt program, øvelse i flere programmer, sletning.
+  const dom = buildPage(
+    { id:"u1", username:"matteo", email:"matteoverdiani.dk@gmail.com", approved:true, group_layout:null, has_onboarded:true,
+      programs:[ {id:"a",name:"Push"}, {id:"b",name:"Pull"} ] },
+    [
+      { user_id:"u1", id:"bench", name:"Bench press", bodyweight:false, muscle:"bryst", variant:"ab", position:1 },
+      { user_id:"u1", id:"fly", name:"Pec deck", bodyweight:false, muscle:"bryst", variant:"b", position:2 },
+      { user_id:"u1", id:"dips", name:"Dips", bodyweight:true, muscle:"bryst", variant:null, position:3 }
+    ],
+    []
+  );
+  const window = dom.window, document = window.document;
+  await wait(1200);
+  const checks = [];
+  function check(label, cond){ checks.push([label, !!cond]); }
+
+  window.goto("exercises");
+  document.querySelector('[data-tab="1"]').click();
+  var main = document.getElementById("main");
+  check("egne programnavne vises som overskrifter", main.innerHTML.indexOf(">Push<")!==-1 && main.innerHTML.indexOf(">Pull<")!==-1);
+  check("'Program 1'/'Program 2' vises ikke når de er omdøbt", main.innerHTML.indexOf("Program 1")===-1);
+  check("øvelse med variant 'ab' ligger i begge programmer", main.querySelectorAll('[data-exid="bench"]').length===2);
+  check("Øvrige øvelser indeholder Dips", main.innerHTML.indexOf("Øvrige øvelser")!==-1 && main.querySelectorAll('[data-exid="dips"]').length===1);
+
+  // Nyt program via Administrer programmer
+  document.getElementById("editProgramsBtn").click();
+  var sheet = document.getElementById("modalSheet");
+  check("modal viser de 2 eksisterende programmer", sheet.querySelectorAll("[data-progname]").length===2);
+  document.getElementById("addProgBtn").click();
+  sheet = document.getElementById("modalSheet");
+  check("nyt program tilføjet i modalen (3 felter)", sheet.querySelectorAll("[data-progname]").length===3);
+  var nameInp = sheet.querySelector('[data-progname="2"]');
+  nameInp.value = "Ben-dag";
+  nameInp.dispatchEvent(new window.Event("input", { bubbles:true }));
+  document.getElementById("saveProgsBtn").click();
+  await wait(100);
+  main = document.getElementById("main");
+  check("det nye program 'Ben-dag' vises på Øvelser-siden", main.innerHTML.indexOf(">Ben-dag<")!==-1);
+  check("gemt med nyt bogstav 'c'", window.getPrograms().map(function(p){return p.id;}).join("")==="abc");
+
+  // Slet 'Pull' (b): bench bliver kun i Push, Pec deck flytter til Øvrige øvelser
+  document.getElementById("editProgramsBtn").click();
+  document.querySelector('[data-progdel="1"]').click();
+  document.getElementById("saveProgsBtn").click();
+  await wait(100);
+  var ex = window.loadEx();
+  check("slettet program fjernes fra øvelser (bench -> 'a')", ex.find(function(e){return e.id==="bench";}).variant==="a");
+  check("øvelse kun i slettet program -> Øvrige (null)", ex.find(function(e){return e.id==="fly";}).variant===null);
+  check("kan ikke slette sidste program", (function(){
+    document.getElementById("editProgramsBtn").click();
+    var dels = document.querySelectorAll("[data-progdel]");
+    for(var i=dels.length-1;i>0;i--){ dels[i].click(); dels = document.querySelectorAll("[data-progdel]"); }
+    return document.querySelectorAll("[data-progname]").length===1;
+  })());
+
+  return checks;
+}
+
 (async function main(){
   await group("Eksisterende bruger / split-filer / fjernet Øvelse 1-2-3-4", testEksisterendeBrugerOgSplit);
   await group("Ny bruger / godkendelsesvæg", testNyBrugerGodkendelsesvaeg);
   await group("Onboarding-flow", testOnboardingFlow);
+  await group("Flere programmer", testFlereProgrammer);
 
   const fails = allResults.filter(function(r){ return !r[1]; });
   allResults.forEach(function(r){ console.log((r[1] ? "OK  " : "FEJL") + " - " + r[0]); });
