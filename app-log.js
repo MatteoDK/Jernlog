@@ -124,16 +124,22 @@ function muscleSelectHtml(selectedMuscle, selectId){
 }
 
 function variantToggleHtml(toggleId, selected){
-  var html = '<div class="field"><label class="field-label">Programmer på Øvelser-siden (intet valg = Øvrige øvelser)</label>';
-  html += '<div class="toggle-group" id="'+toggleId+'" style="flex-wrap:wrap;">';
-  getPrograms().forEach(function(p){
-    var on = String(selected||"").indexOf(p.id)!==-1;
-    html += '<div class="toggle-opt'+(on?' selected':'')+'" data-var="'+p.id+'" style="flex:1 1 40%;">'+escapeHtml(p.name)+'</div>';
+  var programs = getPrograms();
+  var html = '<div class="field"><label class="field-label">Træninger på Øvelser-siden (intet valg = Øvrige øvelser)</label>';
+  html += '<div id="'+toggleId+'">';
+  programs.forEach(function(pr){
+    if(programs.length>1) html += '<div class="muted" style="margin:8px 0 4px;">'+escapeHtml(pr.name)+'</div>';
+    html += '<div class="toggle-group" style="flex-wrap:wrap;">';
+    pr.workouts.forEach(function(w){
+      var on = String(selected||"").indexOf(w.id)!==-1;
+      html += '<div class="toggle-opt'+(on?' selected':'')+'" data-var="'+w.id+'" style="flex:1 1 40%;">'+escapeHtml(w.name)+'</div>';
+    });
+    html += '</div>';
   });
   html += '</div></div>';
   return html;
 }
-/* Flere programmer kan vælges på én gang — tryk igen på et program for at fjerne det igen */
+/* Flere træninger kan vælges på én gang — tryk igen på en træning for at fjerne den igen */
 function attachVariantToggle(toggleId, initial, onChange){
   var box = document.getElementById(toggleId);
   var chosen = String(initial||"");
