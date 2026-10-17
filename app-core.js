@@ -73,6 +73,33 @@ function getEffectiveGroups(){
 }
 function isDefaultGroupLayout(){ return getEffectiveGroups()===MUSCLE_GROUPS_BY_DAY; }
 
+/* Brugerens programmer (profiles.programs: [{id:"a",name:"Program 1"}, ...]). Hver øvelse husker
+   hvilke programmer den er med i som en tekst af program-bogstaver i exercises.variant (fx "ab").
+   Uden eget valg (eller ugyldig data) er der de to klassiske: Program 1 (a) og Program 2 (b). */
+var PROGRAM_LETTERS = "abcdefghijklmnopqrstuvwxyz";
+var DEFAULT_PROGRAMS = [{id:"a", name:"Program 1"}, {id:"b", name:"Program 2"}];
+function getPrograms(){
+  var p = myProfile && myProfile.programs;
+  if(!Array.isArray(p) || p.length===0) return DEFAULT_PROGRAMS;
+  var seen = {};
+  var ok = p.every(function(x){
+    if(!x || typeof x.id!=="string" || x.id.length!==1 || PROGRAM_LETTERS.indexOf(x.id)===-1 || seen[x.id]) return false;
+    seen[x.id] = true;
+    return typeof x.name==="string" && x.name.trim()!=="";
+  });
+  return ok ? p : DEFAULT_PROGRAMS;
+}
+function programName(letter){
+  var f = getPrograms().find(function(p){ return p.id===letter; });
+  return f ? f.name : "Program";
+}
+/* Samler en variant-tekst: kun kendte, unikke bogstaver i fast rækkefølge — tom = null (Øvrige øvelser) */
+function normalizeVariant(letters){
+  var known = getPrograms().map(function(p){ return p.id; });
+  var out = PROGRAM_LETTERS.split("").filter(function(c){ return String(letters||"").indexOf(c)!==-1 && known.indexOf(c)!==-1; }).join("");
+  return out || null;
+}
+
 function dayGroupForMuscle(muscle){
   var groups = getEffectiveGroups();
   for(var i=0;i<groups.length;i++){
@@ -884,7 +911,7 @@ function renderOnboardingProgram(){
   html += '<div class="muted onb-sub">Under "Øvelser/Mit program" i menuen sætter du dit program op — i dit eget tempo.</div>';
   [
     ["ic-plus","Tilføj øvelser","Vælg blandt dem der allerede er i appen, eller opret helt dine egne fra bunden."],
-    ["ic-program","Program 1 og 2","Læg øvelserne i Program 1/2, så appen husker hvad du plejer at lave på de forskellige træningsdage."],
+    ["ic-program","Dine programmer","Læg øvelserne i et program — fx én liste pr. træningsdag. Du kan lave lige så mange programmer du vil og give dem dit eget navn."],
     ["ic-folder","Øvrige øvelser","En tredje liste til øvelser du laver en gang imellem, men som ikke er en fast del af dit split. Nye øvelser havner automatisk her, indtil du selv sætter dem på et program."],
     ["ic-settings","Dine egne muskelgrupper","Alle træner ikke ens — du kan selv vælge hvilke muskelgrupper der hører sammen, hvis din opdeling er anderledes."]
   ].forEach(function(f){
